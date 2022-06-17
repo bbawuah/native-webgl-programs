@@ -1,24 +1,19 @@
 var Scene = /** @class */ (function () {
     function Scene() {
-        var _this = this;
-        this.vertexShader = "\n  attribute vec4 a_Position;\n  attribute float a_PointSize;\n\n  void main() {\n    gl_Position = a_Position;\n    gl_PointSize = a_PointSize;\n  }\n  ";
-        this.fragmentShader = "\n  precision mediump float;\n  uniform vec4 u_FragColor;\n  void main() {\n    gl_FragColor = u_FragColor;\n  }\n  ";
-        this.g_points = [];
-        this.g_colors = [];
+        this.vertexShader = "#version 300 es\n\n  in vec4 a_Position;\n  in float a_PointSize;\n\n  void main() {\n    gl_Position = a_Position;\n    gl_PointSize = a_PointSize;\n  }\n  ";
+        this.fragmentShader = "#version 300 es\n  precision highp float;\n  out vec4 outColor;\n  void main() {\n    outColor = vec4(1, 0, 0.5, 1);\n  }\n  ";
         this.canvasElement = document.querySelector('#webgl-canvas');
         if (!this.canvasElement) {
             console.log('Failed to get canvas element');
             return;
         }
         this.gl = this.canvasElement.getContext('webgl2');
-        var hasInitializedShader = this.initializeShader(this.gl, this.vertexShader, this.fragmentShader);
+        var hasInitializedShader = this.initializeShader();
         if (!hasInitializedShader) {
             console.log('Failed to create program');
             return;
         }
-        this.canvasElement.onmousedown = function (ev) {
-            _this.onClick(ev, _this.gl, _this.canvasElement, _this.a_Position, _this.u_FragColor);
-        };
+        var n = this.initializeVertexBuffer();
         var displayWidth = this.canvasElement.clientWidth;
         var displayHeight = this.canvasElement.clientHeight;
         this.canvasElement.width = displayWidth;
@@ -29,35 +24,32 @@ var Scene = /** @class */ (function () {
         // Clear canvas
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
         // Draw point
-        this.gl.drawArrays(this.gl.POINTS, 0, 1);
+        this.gl.drawArrays(this.gl.TRIANGLES, 0, n);
     }
-    Scene.prototype.initializeShader = function (gl, vShader, fShader) {
+    Scene.prototype.initializeShader = function () {
         // Create program
-        var program = this.createWebGLProgram(gl, vShader, fShader);
+        var program = this.createWebGLProgram();
         if (!program) {
             console.log('Failed to create program');
             return false;
         }
         // Get attribute location
         this.a_Position = this.gl.getAttribLocation(program, 'a_Position');
-        this.u_FragColor = this.gl.getUniformLocation(program, 'u_FragColor');
         var a_PointSize = this.gl.getAttribLocation(program, 'a_PointSize');
         // Declare new position
         var position = new Float32Array([0.5, 0.0, 0.0, 1.0]);
-        var color = [0.0, 0.5, 0.0, 1.0];
-        var pointSize = 14;
+        var pointSize = 10;
         // Set new position
         this.gl.vertexAttrib4fv(this.a_Position, position);
         this.gl.vertexAttrib1f(a_PointSize, pointSize);
-        this.gl.uniform4fv(this.u_FragColor, color);
         // Use program
         this.gl.useProgram(program);
         return true;
     };
-    Scene.prototype.createWebGLProgram = function (gl, vShader, fShader) {
+    Scene.prototype.createWebGLProgram = function () {
         // Load shaders
-        var vertexShader = this.getShader(gl, gl.VERTEX_SHADER, vShader);
-        var fragmentShader = this.getShader(gl, gl.FRAGMENT_SHADER, fShader);
+        var vertexShader = this.getShader(this.gl.VERTEX_SHADER, this.vertexShader);
+        var fragmentShader = this.getShader(this.gl.FRAGMENT_SHADER, this.fragmentShader);
         if (!vertexShader || !fragmentShader) {
             return null;
         }
@@ -80,7 +72,7 @@ var Scene = /** @class */ (function () {
         }
         return program;
     };
-    Scene.prototype.getShader = function (gl, type, source) {
+    Scene.prototype.getShader = function (type, source) {
         // Create shader object
         var shader = this.gl.createShader(type);
         if (!shader) {
@@ -102,33 +94,21 @@ var Scene = /** @class */ (function () {
         }
         return shader;
     };
-    Scene.prototype.onClick = function (ev, gl, canvas, a_Position, u_FragColor) {
-        var x = ev.clientX;
-        var y = ev.clientY;
-        var rect = ev.target.getBoundingClientRect();
-        x = (x - rect.left - canvas.width / 2) / (canvas.width / 2);
-        y = (canvas.height / 2 - (y - rect.top)) / (canvas.height / 2);
-        // Store the coordinates to g_points array
-        this.g_points.push([x, y]);
-        console.log(this.g_points);
-        // Clear canvas
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-        if (x >= 0.0 && y >= 0.0) {
-            this.g_colors.push([1.0, 0.0, 0.0, 1.0]);
+    Scene.prototype.initializeVertexBuffer = function () {
+        var vertices = new Float32Array([0.0, 0.5, -0.5, -0.5, 0.5, -0.5]); //Store vertices in buffer array
+        var n = 3; //Number of vertices
+        var vertexBuffer = this.gl.createBuffer();
+        if (!vertexBuffer) {
+            console.log('Failed to create the vertex buffer');
+            return -1;
         }
-        else if (x < 0.0 && y < 0.0) {
-            this.g_colors.push([0.0, 1.0, 0.0, 1.0]);
-        }
-        else {
-            this.g_colors.push([1.0, 1.0, 1.0, 1.0]);
-        }
-        for (var i = 0; i < this.g_points.length; i += 2) {
-            var xy = this.g_points[i];
-            var rgba = this.g_colors[i];
-            this.gl.vertexAttrib3f(a_Position, xy[0], xy[1], 0.0);
-            this.gl.uniform4fv(this.u_FragColor, rgba);
-            this.gl.drawArrays(this.gl.POINTS, 0, 1);
-        }
+        // Bind the buffer object to a target
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vertexBuffer);
+        // Write data into buffer object
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
+        this.gl.vertexAttribPointer(this.a_Position, 2, this.gl.FLOAT, false, 0, 0);
+        this.gl.enableVertexAttribArray(this.a_Position);
+        return n;
     };
     return Scene;
 }());

@@ -1,26 +1,24 @@
 class Scene {
   private canvasElement: HTMLCanvasElement | undefined;
   private gl: WebGL2RenderingContext;
-  private vertexShader: string = `
-  attribute vec4 a_Position;
-  attribute float a_PointSize;
+  private vertexShader: string = `#version 300 es
+
+  in vec4 a_Position;
+  in float a_PointSize;
 
   void main() {
     gl_Position = a_Position;
     gl_PointSize = a_PointSize;
   }
   `;
-  private fragmentShader: string = `
-  precision mediump float;
-  uniform vec4 u_FragColor;
+  private fragmentShader: string = `#version 300 es
+  precision highp float;
+  out vec4 outColor;
   void main() {
-    gl_FragColor = u_FragColor;
+    outColor = vec4(1, 0, 0.5, 1);
   }
   `;
   private a_Position: number;
-  private u_FragColor: WebGLUniformLocation;
-  private g_points: Array<number[]> = [];
-  private g_colors: Array<number[]> = [];
 
   constructor() {
     this.canvasElement = document.querySelector('#webgl-canvas');
@@ -32,26 +30,14 @@ class Scene {
 
     this.gl = this.canvasElement.getContext('webgl2');
 
-    const hasInitializedShader = this.initializeShader(
-      this.gl,
-      this.vertexShader,
-      this.fragmentShader
-    );
+    const hasInitializedShader = this.initializeShader();
 
     if (!hasInitializedShader) {
       console.log('Failed to create program');
       return;
     }
 
-    this.canvasElement.onmousedown = (ev) => {
-      this.onClick(
-        ev,
-        this.gl,
-        this.canvasElement,
-        this.a_Position,
-        this.u_FragColor
-      );
-    };
+    const n = this.initializeVertexBuffer();
 
     const displayWidth = this.canvasElement.clientWidth;
     const displayHeight = this.canvasElement.clientHeight;
@@ -68,16 +54,12 @@ class Scene {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
     // Draw point
-    this.gl.drawArrays(this.gl.POINTS, 0, 1);
+    this.gl.drawArrays(this.gl.TRIANGLES, 0, n);
   }
 
-  private initializeShader(
-    gl: WebGL2RenderingContext,
-    vShader: string,
-    fShader: string
-  ): boolean {
+  private initializeShader(): boolean {
     // Create program
-    const program = this.createWebGLProgram(gl, vShader, fShader);
+    const program = this.createWebGLProgram();
 
     if (!program) {
       console.log('Failed to create program');
@@ -86,19 +68,16 @@ class Scene {
 
     // Get attribute location
     this.a_Position = this.gl.getAttribLocation(program, 'a_Position');
-    this.u_FragColor = this.gl.getUniformLocation(program, 'u_FragColor');
 
     const a_PointSize = this.gl.getAttribLocation(program, 'a_PointSize');
 
     // Declare new position
     const position = new Float32Array([0.5, 0.0, 0.0, 1.0]);
-    const color = [0.0, 0.5, 0.0, 1.0];
-    const pointSize = 14;
+    const pointSize = 10;
 
     // Set new position
     this.gl.vertexAttrib4fv(this.a_Position, position);
     this.gl.vertexAttrib1f(a_PointSize, pointSize);
-    this.gl.uniform4fv(this.u_FragColor, color);
 
     // Use program
     this.gl.useProgram(program);
@@ -106,14 +85,16 @@ class Scene {
     return true;
   }
 
-  private createWebGLProgram(
-    gl: WebGL2RenderingContext,
-    vShader: string,
-    fShader: string
-  ): WebGLProgram {
+  private createWebGLProgram(): WebGLProgram {
     // Load shaders
-    const vertexShader = this.getShader(gl, gl.VERTEX_SHADER, vShader);
-    const fragmentShader = this.getShader(gl, gl.FRAGMENT_SHADER, fShader);
+    const vertexShader = this.getShader(
+      this.gl.VERTEX_SHADER,
+      this.vertexShader
+    );
+    const fragmentShader = this.getShader(
+      this.gl.FRAGMENT_SHADER,
+      this.fragmentShader
+    );
 
     if (!vertexShader || !fragmentShader) {
       return null;
@@ -146,11 +127,7 @@ class Scene {
     return program;
   }
 
-  private getShader(
-    gl: WebGL2RenderingContext,
-    type: number,
-    source: string
-  ): WebGLShader {
+  private getShader(type: number, source: string): WebGLShader {
     // Create shader object
     const shader = this.gl.createShader(type);
 
@@ -180,44 +157,29 @@ class Scene {
     return shader;
   }
 
-  private onClick(
-    ev: MouseEvent,
-    gl: WebGLRenderingContext,
-    canvas: HTMLCanvasElement,
-    a_Position: number,
-    u_FragColor: WebGLUniformLocation
-  ): void {
-    let x = ev.clientX;
-    let y = ev.clientY;
+  private initializeVertexBuffer(): number {
+    const vertices = new Float32Array([0.0, 0.5, -0.5, -0.5, 0.5, -0.5]); //Store vertices in buffer array
 
-    const rect: DOMRect = (ev.target as any).getBoundingClientRect() as DOMRect;
+    const n = 3; //Number of vertices
 
-    x = (x - rect.left - canvas.width / 2) / (canvas.width / 2);
-    y = (canvas.height / 2 - (y - rect.top)) / (canvas.height / 2);
+    const vertexBuffer = this.gl.createBuffer();
 
-    // Store the coordinates to g_points array
-    this.g_points.push([x, y]);
-
-    console.log(this.g_points);
-    // Clear canvas
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-
-    if (x >= 0.0 && y >= 0.0) {
-      this.g_colors.push([1.0, 0.0, 0.0, 1.0]);
-    } else if (x < 0.0 && y < 0.0) {
-      this.g_colors.push([0.0, 1.0, 0.0, 1.0]);
-    } else {
-      this.g_colors.push([1.0, 1.0, 1.0, 1.0]);
+    if (!vertexBuffer) {
+      console.log('Failed to create the vertex buffer');
+      return -1;
     }
 
-    for (let i = 0; i < this.g_points.length; i += 2) {
-      const xy = this.g_points[i];
-      const rgba = this.g_colors[i];
-      this.gl.vertexAttrib3f(a_Position, xy[0], xy[1], 0.0);
-      this.gl.uniform4fv(this.u_FragColor, rgba);
+    // Bind the buffer object to a target
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vertexBuffer);
 
-      this.gl.drawArrays(this.gl.POINTS, 0, 1);
-    }
+    // Write data into buffer object
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
+
+    this.gl.vertexAttribPointer(this.a_Position, 2, this.gl.FLOAT, false, 0, 0);
+
+    this.gl.enableVertexAttribArray(this.a_Position);
+
+    return n;
   }
 }
 
