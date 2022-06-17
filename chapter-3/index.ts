@@ -68,13 +68,9 @@ class Scene {
       return false;
     }
 
-    console.log(program);
     // Get attribute location
     this.a_Position = this.gl.getAttribLocation(program, 'a_Position');
     const u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
-
-    const linked = this.gl.getProgramParameter(program, this.gl.LINK_STATUS);
-    console.log(linked);
 
     // Declare new position
     const position = new Float32Array([0.0, 0.0, 0.0, 1.0]);
