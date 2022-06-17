@@ -1,7 +1,7 @@
 var Scene = /** @class */ (function () {
     function Scene() {
         this.vertexShader = "#version 300 es\n\n  in vec4 a_Position;\n  in float a_PointSize;\n\n  uniform vec4 u_Translation;\n\n  void main() {\n    gl_Position = a_Position + u_Translation;\n    gl_PointSize = a_PointSize;\n  }\n  ";
-        this.fragmentShader = "#version 300 es\n  precision highp float;\n  out vec4 outColor;\n  void main() {\n    outColor = vec4(1, 0, 0.5, 1);\n  }\n  ";
+        this.fragmentShader = "#version 300 es\n  precision highp float;\n  out vec4 outColor;\n  void main() {\n    outColor = vec4(1.0, 0.0, 0.5, 1);\n  }\n  ";
         this.canvasElement = document.querySelector('#webgl-canvas');
         if (!this.canvasElement) {
             console.log('Failed to get canvas element');
@@ -33,20 +33,18 @@ var Scene = /** @class */ (function () {
             console.log('Failed to create program');
             return false;
         }
-        console.log(program);
+        // Use program
+        this.gl.useProgram(program);
         // Get attribute location
         this.a_Position = this.gl.getAttribLocation(program, 'a_Position');
         var u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
-        var linked = this.gl.getProgramParameter(program, this.gl.LINK_STATUS);
-        console.log(linked);
         // Declare new position
         var position = new Float32Array([0.0, 0.0, 0.0, 1.0]);
+        // Declare translation
         var translation = new Float32Array([0.5, 0.5, 0.0, 0.0]);
         // Set new position
         this.gl.vertexAttrib4fv(this.a_Position, position);
         this.gl.uniform4fv(u_Translation, translation);
-        // Use program
-        this.gl.useProgram(program);
         return true;
     };
     Scene.prototype.createWebGLProgram = function () {

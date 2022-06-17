@@ -17,7 +17,7 @@ class Scene {
   precision highp float;
   out vec4 outColor;
   void main() {
-    outColor = vec4(1, 0, 0.5, 1);
+    outColor = vec4(1.0, 0.0, 0.5, 1);
   }
   `;
   private a_Position: number;
@@ -68,20 +68,22 @@ class Scene {
       return false;
     }
 
+    // Use program
+    this.gl.useProgram(program);
+
     // Get attribute location
     this.a_Position = this.gl.getAttribLocation(program, 'a_Position');
     const u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
 
     // Declare new position
     const position = new Float32Array([0.0, 0.0, 0.0, 1.0]);
+
+    // Declare translation
     const translation = new Float32Array([0.5, 0.5, 0.0, 0.0]);
 
     // Set new position
     this.gl.vertexAttrib4fv(this.a_Position, position);
     this.gl.uniform4fv(u_Translation, translation);
-
-    // Use program
-    this.gl.useProgram(program);
 
     return true;
   }
