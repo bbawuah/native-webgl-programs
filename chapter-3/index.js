@@ -1,6 +1,6 @@
 var Scene = /** @class */ (function () {
     function Scene() {
-        this.vertexShader = "#version 300 es\n\n  in vec4 a_Position;\n  in float a_PointSize;\n\n  void main() {\n    gl_Position = a_Position;\n    gl_PointSize = a_PointSize;\n  }\n  ";
+        this.vertexShader = "#version 300 es\n\n  in vec4 a_Position;\n  in float a_PointSize;\n\n  uniform vec4 u_Translation;\n\n  void main() {\n    gl_Position = a_Position + u_Translation;\n    gl_PointSize = a_PointSize;\n  }\n  ";
         this.fragmentShader = "#version 300 es\n  precision highp float;\n  out vec4 outColor;\n  void main() {\n    outColor = vec4(1, 0, 0.5, 1);\n  }\n  ";
         this.canvasElement = document.querySelector('#webgl-canvas');
         if (!this.canvasElement) {
@@ -8,12 +8,12 @@ var Scene = /** @class */ (function () {
             return;
         }
         this.gl = this.canvasElement.getContext('webgl2');
+        var n = this.initializeVertexBuffer();
         var hasInitializedShader = this.initializeShader();
         if (!hasInitializedShader) {
             console.log('Failed to create program');
             return;
         }
-        var n = this.initializeVertexBuffer();
         var displayWidth = this.canvasElement.clientWidth;
         var displayHeight = this.canvasElement.clientHeight;
         this.canvasElement.width = displayWidth;
@@ -24,7 +24,7 @@ var Scene = /** @class */ (function () {
         // Clear canvas
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
         // Draw point
-        this.gl.drawArrays(this.gl.TRIANGLES, 0, n);
+        this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, n);
     }
     Scene.prototype.initializeShader = function () {
         // Create program
@@ -33,15 +33,18 @@ var Scene = /** @class */ (function () {
             console.log('Failed to create program');
             return false;
         }
+        console.log(program);
         // Get attribute location
         this.a_Position = this.gl.getAttribLocation(program, 'a_Position');
-        var a_PointSize = this.gl.getAttribLocation(program, 'a_PointSize');
+        var u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
+        var linked = this.gl.getProgramParameter(program, this.gl.LINK_STATUS);
+        console.log(linked);
         // Declare new position
-        var position = new Float32Array([0.5, 0.0, 0.0, 1.0]);
-        var pointSize = 10;
+        var position = new Float32Array([0.0, 0.0, 0.0, 1.0]);
+        var translation = new Float32Array([0.5, 0.5, 0.0, 0.0]);
         // Set new position
         this.gl.vertexAttrib4fv(this.a_Position, position);
-        this.gl.vertexAttrib1f(a_PointSize, pointSize);
+        this.gl.uniform4fv(u_Translation, translation);
         // Use program
         this.gl.useProgram(program);
         return true;
@@ -69,6 +72,7 @@ var Scene = /** @class */ (function () {
             this.gl.deleteProgram(program);
             this.gl.deleteShader(vertexShader);
             this.gl.deleteShader(fragmentShader);
+            return null;
         }
         return program;
     };
@@ -95,8 +99,10 @@ var Scene = /** @class */ (function () {
         return shader;
     };
     Scene.prototype.initializeVertexBuffer = function () {
-        var vertices = new Float32Array([0.0, 0.5, -0.5, -0.5, 0.5, -0.5]); //Store vertices in buffer array
-        var n = 3; //Number of vertices
+        var vertices = new Float32Array([
+            -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, 0.5, -0.5
+        ]); //Store vertices in buffer array
+        var n = 4; //Number of vertices
         var vertexBuffer = this.gl.createBuffer();
         if (!vertexBuffer) {
             console.log('Failed to create the vertex buffer');

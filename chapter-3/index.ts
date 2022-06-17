@@ -6,8 +6,10 @@ class Scene {
   in vec4 a_Position;
   in float a_PointSize;
 
+  uniform vec4 u_Translation;
+
   void main() {
-    gl_Position = a_Position;
+    gl_Position = a_Position + u_Translation;
     gl_PointSize = a_PointSize;
   }
   `;
@@ -30,14 +32,14 @@ class Scene {
 
     this.gl = this.canvasElement.getContext('webgl2');
 
+    const n = this.initializeVertexBuffer();
+
     const hasInitializedShader = this.initializeShader();
 
     if (!hasInitializedShader) {
       console.log('Failed to create program');
       return;
     }
-
-    const n = this.initializeVertexBuffer();
 
     const displayWidth = this.canvasElement.clientWidth;
     const displayHeight = this.canvasElement.clientHeight;
@@ -54,7 +56,7 @@ class Scene {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
     // Draw point
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, n);
+    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, n);
   }
 
   private initializeShader(): boolean {
@@ -66,18 +68,21 @@ class Scene {
       return false;
     }
 
+    console.log(program);
     // Get attribute location
     this.a_Position = this.gl.getAttribLocation(program, 'a_Position');
+    const u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
 
-    const a_PointSize = this.gl.getAttribLocation(program, 'a_PointSize');
+    const linked = this.gl.getProgramParameter(program, this.gl.LINK_STATUS);
+    console.log(linked);
 
     // Declare new position
-    const position = new Float32Array([0.5, 0.0, 0.0, 1.0]);
-    const pointSize = 10;
+    const position = new Float32Array([0.0, 0.0, 0.0, 1.0]);
+    const translation = new Float32Array([0.5, 0.5, 0.0, 0.0]);
 
     // Set new position
     this.gl.vertexAttrib4fv(this.a_Position, position);
-    this.gl.vertexAttrib1f(a_PointSize, pointSize);
+    this.gl.uniform4fv(u_Translation, translation);
 
     // Use program
     this.gl.useProgram(program);
@@ -111,7 +116,10 @@ class Scene {
     this.gl.linkProgram(program);
 
     // Get the result
-    const linked = this.gl.getProgramParameter(program, this.gl.LINK_STATUS);
+    const linked: boolean = this.gl.getProgramParameter(
+      program,
+      this.gl.LINK_STATUS
+    );
 
     if (!linked) {
       const error = this.gl.getProgramInfoLog(program);
@@ -122,6 +130,7 @@ class Scene {
       this.gl.deleteProgram(program);
       this.gl.deleteShader(vertexShader);
       this.gl.deleteShader(fragmentShader);
+      return null;
     }
 
     return program;
@@ -158,9 +167,11 @@ class Scene {
   }
 
   private initializeVertexBuffer(): number {
-    const vertices = new Float32Array([0.0, 0.5, -0.5, -0.5, 0.5, -0.5]); //Store vertices in buffer array
+    const vertices = new Float32Array([
+      -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, 0.5, -0.5
+    ]); //Store vertices in buffer array
 
-    const n = 3; //Number of vertices
+    const n = 4; //Number of vertices
 
     const vertexBuffer = this.gl.createBuffer();
 
