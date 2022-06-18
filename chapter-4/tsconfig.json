@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES3",
+    "allowJs": true
+  },
+  "include": ["*.ts"],
+  "exclude": ["cuon-matrix.js"]
+}
