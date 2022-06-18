@@ -1,12 +1,8 @@
 var Scene = /** @class */ (function () {
     function Scene() {
-        this.vertexShader = "#version 300 es\n\n  in vec4 a_Position;\n  in float a_PointSize;\n\n  uniform vec4 u_Translation;\n\n  void main() {\n    gl_Position = a_Position + u_Translation;\n    gl_PointSize = a_PointSize;\n  }\n  ";
+        this.vertexShader = "#version 300 es\n\n  in vec4 a_Position;\n  in float a_PointSize;\n\n  uniform vec4 u_Translation;\n  uniform float u_CosB;\n  uniform float u_SinB;\n  uniform mat4 u_xformMatrix;\n\n  void main() {\ngl_Position = u_xformMatrix * a_Position;\n  }\n  ";
         this.fragmentShader = "#version 300 es\n  precision highp float;\n  out vec4 outColor;\n  void main() {\n    outColor = vec4(1.0, 0.0, 0.5, 1);\n  }\n  ";
         this.canvasElement = document.querySelector('#webgl-canvas');
-        if (!this.canvasElement) {
-            console.log('Failed to get canvas element');
-            return;
-        }
         this.gl = this.canvasElement.getContext('webgl2');
         var n = this.initializeVertexBuffer();
         var hasInitializedShader = this.initializeShader();
@@ -37,14 +33,61 @@ var Scene = /** @class */ (function () {
         this.gl.useProgram(program);
         // Get attribute location
         this.a_Position = this.gl.getAttribLocation(program, 'a_Position');
-        var u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
+        // Get uniform location
+        // const u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
         // Declare new position
         var position = new Float32Array([0.0, 0.0, 0.0, 1.0]);
         // Declare translation
         var translation = new Float32Array([0.5, 0.5, 0.0, 0.0]);
+        var angle = 4;
+        var radian = (Math.PI * angle) / 180;
+        var cosB = Math.cos(radian);
+        var sinB = Math.sin(radian);
+        // Matrix in column major order
+        var xFormMatrix = new Float32Array([
+            cosB,
+            sinB,
+            0.0,
+            0.0,
+            -sinB,
+            cosB,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.1,
+            0.3,
+            0.0,
+            1.0
+        ]);
+        /*
+         * Rotation matrix
+         * [cosB, sinB, 0.0, 0.0,
+         *  -sinB, cosB, 0.0, 0.0,
+         *  0.0, 0.0, 1.0, 0.0,
+         *  0.0, 0.0, 0.0,1.0]
+         */
+        /*
+         * Translation matrix
+         * [1.0, 0.0, 0.0, 0.0,
+         *  0.0, 1.0, 0.0, 0.0,
+         *  0.0, 0.0, 1.0, 0.0,
+         *  0.1, 0.3, 0.0,1.0]
+         */
+        /*
+         * Scaled matrix
+         * [Sx, 0.0, 0.0, 0.0,
+         *  0.0, Sy, 0.0, 0.0,
+         *  0.0, 0.0, Sz, 0.0,
+         *  0.1, 0.3, 0.0,1.0]
+         */
+        var u_xformMatrix = this.gl.getUniformLocation(program, 'u_xformMatrix');
+        this.gl.uniformMatrix4fv(u_xformMatrix, false, xFormMatrix);
         // Set new position
         this.gl.vertexAttrib4fv(this.a_Position, position);
-        this.gl.uniform4fv(u_Translation, translation);
+        // this.gl.uniform4fv(u_Translation, translation);
         return true;
     };
     Scene.prototype.createWebGLProgram = function () {
@@ -81,7 +124,7 @@ var Scene = /** @class */ (function () {
             console.log('Could not create the shader');
             return null;
         }
-        // Set the shader program
+        // Set the shader source
         this.gl.shaderSource(shader, source);
         // Compile the shader
         this.gl.compileShader(shader);
@@ -97,10 +140,9 @@ var Scene = /** @class */ (function () {
         return shader;
     };
     Scene.prototype.initializeVertexBuffer = function () {
-        var vertices = new Float32Array([
-            -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, 0.5, -0.5
-        ]); //Store vertices in buffer array
-        var n = 4; //Number of vertices
+        var vertices = new Float32Array([-0.5, 0.5, -0.5, -0.5, 0.5, 0.5]); //Store vertices in buffer array
+        var n = 3; //Number of vertices
+        // Create vertex buffer
         var vertexBuffer = this.gl.createBuffer();
         if (!vertexBuffer) {
             console.log('Failed to create the vertex buffer');
@@ -110,6 +152,7 @@ var Scene = /** @class */ (function () {
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vertexBuffer);
         // Write data into buffer object
         this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
+        // Assign buffer object to attribute value
         this.gl.vertexAttribPointer(this.a_Position, 2, this.gl.FLOAT, false, 0, 0);
         this.gl.enableVertexAttribArray(this.a_Position);
         return n;

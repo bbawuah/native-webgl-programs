@@ -1,6 +1,6 @@
 # Creating a canvas in WebGL
 
-## Install Dependencies
+## Compile TS
 
 ```bash
 npm i

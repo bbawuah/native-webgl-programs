@@ -1,16 +1,19 @@
 class Scene {
   private canvasElement: HTMLCanvasElement | undefined;
   private gl: WebGL2RenderingContext;
+  private a_Position: number;
   private vertexShader: string = `#version 300 es
 
   in vec4 a_Position;
   in float a_PointSize;
 
   uniform vec4 u_Translation;
+  uniform float u_CosB;
+  uniform float u_SinB;
+  uniform mat4 u_xformMatrix;
 
   void main() {
-    gl_Position = a_Position + u_Translation;
-    gl_PointSize = a_PointSize;
+gl_Position = u_xformMatrix * a_Position;
   }
   `;
   private fragmentShader: string = `#version 300 es
@@ -20,15 +23,9 @@ class Scene {
     outColor = vec4(1.0, 0.0, 0.5, 1);
   }
   `;
-  private a_Position: number;
 
   constructor() {
     this.canvasElement = document.querySelector('#webgl-canvas');
-
-    if (!this.canvasElement) {
-      console.log('Failed to get canvas element');
-      return;
-    }
 
     this.gl = this.canvasElement.getContext('webgl2');
 
@@ -73,7 +70,9 @@ class Scene {
 
     // Get attribute location
     this.a_Position = this.gl.getAttribLocation(program, 'a_Position');
-    const u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
+
+    // Get uniform location
+    // const u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
 
     // Declare new position
     const position = new Float32Array([0.0, 0.0, 0.0, 1.0]);
@@ -81,9 +80,62 @@ class Scene {
     // Declare translation
     const translation = new Float32Array([0.5, 0.5, 0.0, 0.0]);
 
+    const angle = 4;
+    const radian = (Math.PI * angle) / 180;
+    const cosB = Math.cos(radian);
+    const sinB = Math.sin(radian);
+
+    // Matrix in column major order
+    const xFormMatrix = new Float32Array([
+      cosB,
+      sinB,
+      0.0,
+      0.0,
+      -sinB,
+      cosB,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.1,
+      0.3,
+      0.0,
+      1.0
+    ]);
+
+    /*
+     * Rotation matrix
+     * [cosB, sinB, 0.0, 0.0,
+     *  -sinB, cosB, 0.0, 0.0,
+     *  0.0, 0.0, 1.0, 0.0,
+     *  0.0, 0.0, 0.0,1.0]
+     */
+
+    /*
+     * Translation matrix
+     * [1.0, 0.0, 0.0, 0.0,
+     *  0.0, 1.0, 0.0, 0.0,
+     *  0.0, 0.0, 1.0, 0.0,
+     *  0.1, 0.3, 0.0,1.0]
+     */
+
+    /*
+     * Scaled matrix
+     * [Sx, 0.0, 0.0, 0.0,
+     *  0.0, Sy, 0.0, 0.0,
+     *  0.0, 0.0, Sz, 0.0,
+     *  0.1, 0.3, 0.0,1.0]
+     */
+
+    const u_xformMatrix = this.gl.getUniformLocation(program, 'u_xformMatrix');
+
+    this.gl.uniformMatrix4fv(u_xformMatrix, false, xFormMatrix);
+
     // Set new position
     this.gl.vertexAttrib4fv(this.a_Position, position);
-    this.gl.uniform4fv(u_Translation, translation);
+    // this.gl.uniform4fv(u_Translation, translation);
 
     return true;
   }
@@ -143,7 +195,7 @@ class Scene {
       return null;
     }
 
-    // Set the shader program
+    // Set the shader source
     this.gl.shaderSource(shader, source);
 
     // Compile the shader
@@ -165,12 +217,11 @@ class Scene {
   }
 
   private initializeVertexBuffer(): number {
-    const vertices = new Float32Array([
-      -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, 0.5, -0.5
-    ]); //Store vertices in buffer array
+    const vertices = new Float32Array([-0.5, 0.5, -0.5, -0.5, 0.5, 0.5]); //Store vertices in buffer array
 
-    const n = 4; //Number of vertices
+    const n = 3; //Number of vertices
 
+    // Create vertex buffer
     const vertexBuffer = this.gl.createBuffer();
 
     if (!vertexBuffer) {
@@ -184,6 +235,7 @@ class Scene {
     // Write data into buffer object
     this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
 
+    // Assign buffer object to attribute value
     this.gl.vertexAttribPointer(this.a_Position, 2, this.gl.FLOAT, false, 0, 0);
 
     this.gl.enableVertexAttribArray(this.a_Position);

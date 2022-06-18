@@ -1,6 +1,6 @@
 # Drawing a triangle in WebGL
 
-## Install Dependencies
+## Compile TS
 
 ```bash
 npm i
