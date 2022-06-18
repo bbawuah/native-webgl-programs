@@ -537,6 +537,8 @@ exports.__esModule = true;
 var cuon_matrix_js_1 = require("./cuon-matrix.js");
 var Scene = /** @class */ function() {
     function Scene1() {
+        var _this = this;
+        this.previousTime = Date.now();
         this.vertexShader = "#version 300 es\n\n  in vec4 a_Position;\n  in float a_PointSize;\n\n  uniform vec4 u_Translation;\n  uniform float u_CosB;\n  uniform float u_SinB;\n  uniform mat4 u_ModelMatrix;\n\n  void main() {\ngl_Position = u_ModelMatrix * a_Position;\n  }\n  ";
         this.fragmentShader = "#version 300 es\n  precision highp float;\n  out vec4 outColor;\n  void main() {\n    outColor = vec4(1.0, 0.0, 0.5, 1);\n  }\n  ";
         this.canvasElement = document.querySelector("#webgl-canvas");
@@ -549,48 +551,17 @@ var Scene = /** @class */ function() {
         }
         var displayWidth = this.canvasElement.clientWidth;
         var displayHeight = this.canvasElement.clientHeight;
-        console.log("test");
         this.canvasElement.width = displayWidth;
         this.canvasElement.height = displayHeight;
         this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
         // Set the color
         this.gl.clearColor(0.0, 1.0, 1.0, 1.0);
-        // Clear canvas
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-        // Draw point
-        this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, n);
-    }
-    Scene1.prototype.initializeShader = function() {
-        // Create program
-        var program = this.createWebGLProgram();
-        if (!program) {
-            console.log("Failed to create program");
-            return false;
-        }
-        // Use program
-        this.gl.useProgram(program);
-        // Get attribute location
-        this.a_Position = this.gl.getAttribLocation(program, "a_Position");
-        // Get uniform location
-        // const u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
-        // Declare new position
-        var position = new Float32Array([
-            0.0,
-            0.0,
-            0.0,
-            1.0
-        ]);
-        // Declare translation
-        var translation = new Float32Array([
-            0.5,
-            0.5,
-            0.0,
-            0.0
-        ]);
+        var currentAngle = 0.0;
         var angle = 45;
         var radian = Math.PI * angle / 180;
         var cosB = Math.cos(radian);
         var sinB = Math.sin(radian);
+        var modelMatrix = new cuon_matrix_js_1.Matrix4({});
         // Matrix in column major order
         // const xFormMatrix = new Float32Array([
         //   cosB,
@@ -628,11 +599,61 @@ var Scene = /** @class */ function() {
          *  0.0, Sy, 0.0, 0.0,
          *  0.0, 0.0, Sz, 0.0,
          *  0.1, 0.3, 0.0,1.0]
-         */ var modelMatrix = new cuon_matrix_js_1.Matrix4({});
-        modelMatrix.setTranslate(0.5, 0.5, 0);
+         */ modelMatrix.setTranslate(0.5, 0.5, 0);
         modelMatrix.rotate(angle, 0, 0, 1);
-        var u_ModelMatrix = this.gl.getUniformLocation(program, "u_ModelMatrix");
-        this.gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+        var u_ModelMatrix = this.gl.getUniformLocation(this.program, "u_ModelMatrix");
+        var tick = function() {
+            currentAngle = _this.animate(currentAngle);
+            _this.draw(n, currentAngle, modelMatrix, u_ModelMatrix);
+            requestAnimationFrame(tick);
+        };
+        tick();
+    }
+    Scene1.prototype.draw = function(n, angle, modelMatrix, location) {
+        // Set rotation
+        modelMatrix.setRotate(angle, 0, 0, 1);
+        modelMatrix.translate(0.9, 0.0, 0.0);
+        this.gl.uniformMatrix4fv(location, false, modelMatrix.elements);
+        // Clear canvas
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+        // Draw point
+        this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, n);
+    };
+    Scene1.prototype.animate = function(angle) {
+        var now = Date.now();
+        var elapsedTime = now - this.previousTime;
+        this.previousTime = now;
+        var newAngle = angle + 45.0 * elapsedTime / 1000;
+        return newAngle %= 360;
+    };
+    Scene1.prototype.initializeShader = function() {
+        // Create program
+        var program = this.createWebGLProgram();
+        if (!program) {
+            console.log("Failed to create program");
+            return false;
+        }
+        // Use program
+        this.gl.useProgram(program);
+        this.program = program;
+        // Get attribute location
+        this.a_Position = this.gl.getAttribLocation(program, "a_Position");
+        // Get uniform location
+        // const u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
+        // Declare new position
+        var position = new Float32Array([
+            0.0,
+            0.0,
+            0.0,
+            1.0
+        ]);
+        // Declare translation
+        var translation = new Float32Array([
+            0.5,
+            0.5,
+            0.0,
+            0.0
+        ]);
         // Set new position
         this.gl.vertexAttrib4fv(this.a_Position, position);
         // this.gl.uniform4fv(u_Translation, translation);

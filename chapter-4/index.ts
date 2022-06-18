@@ -4,6 +4,8 @@ class Scene {
   private canvasElement: HTMLCanvasElement | undefined;
   private gl: WebGL2RenderingContext;
   private a_Position: number;
+  private program: WebGLProgram;
+  private previousTime: number = Date.now();
   private vertexShader: string = `#version 300 es
 
   in vec4 a_Position;
@@ -43,8 +45,6 @@ gl_Position = u_ModelMatrix * a_Position;
     const displayWidth = this.canvasElement.clientWidth;
     const displayHeight = this.canvasElement.clientHeight;
 
-    console.log('test');
-
     this.canvasElement.width = displayWidth;
     this.canvasElement.height = displayHeight;
 
@@ -53,41 +53,13 @@ gl_Position = u_ModelMatrix * a_Position;
     // Set the color
     this.gl.clearColor(0.0, 1.0, 1.0, 1.0);
 
-    // Clear canvas
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-
-    // Draw point
-    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, n);
-  }
-
-  private initializeShader(): boolean {
-    // Create program
-    const program = this.createWebGLProgram();
-
-    if (!program) {
-      console.log('Failed to create program');
-      return false;
-    }
-
-    // Use program
-    this.gl.useProgram(program);
-
-    // Get attribute location
-    this.a_Position = this.gl.getAttribLocation(program, 'a_Position');
-
-    // Get uniform location
-    // const u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
-
-    // Declare new position
-    const position = new Float32Array([0.0, 0.0, 0.0, 1.0]);
-
-    // Declare translation
-    const translation = new Float32Array([0.5, 0.5, 0.0, 0.0]);
-
+    let currentAngle = 0.0;
     const angle = 45;
     const radian = (Math.PI * angle) / 180;
     const cosB = Math.cos(radian);
     const sinB = Math.sin(radian);
+
+    const modelMatrix = new Matrix4({});
 
     // Matrix in column major order
     // const xFormMatrix = new Float32Array([
@@ -133,15 +105,77 @@ gl_Position = u_ModelMatrix * a_Position;
      *  0.1, 0.3, 0.0,1.0]
      */
 
-    const modelMatrix = new Matrix4({});
-
     modelMatrix.setTranslate(0.5, 0.5, 0);
     modelMatrix.rotate(angle, 0, 0, 1);
 
-    const u_ModelMatrix = this.gl.getUniformLocation(program, 'u_ModelMatrix');
+    const u_ModelMatrix = this.gl.getUniformLocation(
+      this.program,
+      'u_ModelMatrix'
+    );
 
-    this.gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+    const tick = () => {
+      currentAngle = this.animate(currentAngle);
+      this.draw(n, currentAngle, modelMatrix, u_ModelMatrix);
 
+      requestAnimationFrame(tick);
+    };
+
+    tick();
+  }
+
+  private draw(
+    n: number,
+    angle: number,
+    modelMatrix: Matrix4,
+    location: WebGLUniformLocation
+  ) {
+    // Set rotation
+    modelMatrix.setRotate(angle, 0, 0, 1);
+    modelMatrix.translate(0.9, 0.0, 0.0);
+
+    this.gl.uniformMatrix4fv(location, false, modelMatrix.elements);
+
+    // Clear canvas
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+
+    // Draw point
+    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, n);
+  }
+
+  private animate(angle: number): number {
+    const now = Date.now();
+    const elapsedTime = now - this.previousTime;
+    this.previousTime = now;
+
+    let newAngle = angle + (45.0 * elapsedTime) / 1000;
+
+    return (newAngle %= 360);
+  }
+  private initializeShader(): boolean {
+    // Create program
+    const program = this.createWebGLProgram();
+
+    if (!program) {
+      console.log('Failed to create program');
+      return false;
+    }
+
+    // Use program
+    this.gl.useProgram(program);
+
+    this.program = program;
+
+    // Get attribute location
+    this.a_Position = this.gl.getAttribLocation(program, 'a_Position');
+
+    // Get uniform location
+    // const u_Translation = this.gl.getUniformLocation(program, 'u_Translation');
+
+    // Declare new position
+    const position = new Float32Array([0.0, 0.0, 0.0, 1.0]);
+
+    // Declare translation
+    const translation = new Float32Array([0.5, 0.5, 0.0, 0.0]);
     // Set new position
     this.gl.vertexAttrib4fv(this.a_Position, position);
     // this.gl.uniform4fv(u_Translation, translation);
